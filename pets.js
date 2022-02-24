@@ -1,5 +1,9 @@
+#! /bin/env node
+
 "use strict";
+
 const fs = require("fs");
+
 const command = process.argv?.[2]?.toLowerCase();
 const commands = { read: null, create: null, update: null, destroy: null };
 
@@ -14,7 +18,8 @@ let petData;
 try {
   petData = JSON.parse(fs.readFileSync("pets.json", "utf8"));
 } catch (err) {
-  return console.error(err);
+  console.error(err);
+  process.exit(1);
 }
 
 if (command === "read") {
@@ -41,7 +46,7 @@ function create() {
     console.error("Usage: node pet.js create AGE KIND NAME");
     process.exit(1);
   }
-  let newPet = {};
+  const newPet = {};
   newPet.age = +process.argv[3];
   newPet.kind = process.argv[4];
   newPet.name = process.argv[5];
@@ -51,7 +56,7 @@ function create() {
       console.error(err);
       return;
     }
-    console.info(`Wrote ${newPet} to file`);
+    console.info(`Wrote ${JSON.stringify(petData)} to file`);
   });
 }
 
