@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const http = require("http");
+const routes = require("./routes");
 
 const petRE = /^\/pets\/(.*)$/;
 
