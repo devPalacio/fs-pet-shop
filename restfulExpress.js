@@ -2,10 +2,10 @@
 
 const fs = require("fs");
 const express = require("express");
-const app = express();
+const morgan = require("morgan");
 
+const app = express();
 const port = process.env.PORT ?? 8000;
-const petRE = /^\/pets\/(.*)$/;
 
 function readFile(callback) {
   fs.readFile("pets.json", "utf-8", (err, data) => {
@@ -15,39 +15,119 @@ function readFile(callback) {
     callback(null, JSON.parse(data));
   });
 }
-app.get(petRE, (req, res) => {
-  const index = req.url.match(petRE) === null ? "" : req.url.match(petRE)[1];
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
+
+app.get("/pets/:index", (req, res) => {
+  let index = req.params.index;
   readFile((err, petData) => {
     if (err) {
-      res.statusCode = 500;
-      res.statusMessage = "Problem reading pets.json";
-      res.end();
+      res.status(500).send("Problem reading pets.json");
       return;
     }
     if (!index || !petData[index]) {
-      res.statusCode = 404;
-      res.setHeader("Content-type", "text/plain");
-      res.end("Not Found");
+      res.status(404).send("Not found");
       return;
     }
-    console.error(index);
     res.setHeader("Content-type", "application/json");
-    res.write(JSON.stringify(petData[index]));
-    res.end();
+    res.json(petData[index]);
   });
 });
 
 app.get("/pets", (req, res) => {
   readFile((err, petData) => {
     if (err) {
-      res.statusCode = 500;
-      res.statusMessage = "Problem reading pets.json";
-      res.end();
+      res.status(500).send("Problem reading pets.json");
       return;
     }
+
     res.setHeader("Content-type", "application/json");
-    res.write(JSON.stringify(petData));
-    res.end();
+    res.json(petData);
+  });
+});
+
+app.post("/pets", (req, res) => {
+  readFile((err, petData) => {
+    if (err) {
+      res.status(500).send("Problem reading pets.json");
+      return;
+    }
+    let { age, name, kind } = req.body;
+    if (name === "" || kind === "" || !Number.isInteger(age)) {
+      res.status(400).send("Bad Request");
+      return;
+    }
+
+    petData.push(req.body);
+    fs.writeFile("pets.json", JSON.stringify(petData), "utf8", (err) => {
+      if (err) {
+        res.status(500).send("Problem writing to pets.json");
+        return;
+      }
+      res.setHeader("Content-type", "application/json");
+      res.send(req.body);
+    });
+  });
+});
+
+app.patch("/pets/:index", (req, res) => {
+  let index = req.params.index;
+  readFile((err, petData) => {
+    if (err) {
+      res.status(500).send("Problem reading pets.json");
+      return;
+    }
+    if (!index || !petData[index]) {
+      res.status(404).send("Not Found");
+      return;
+    }
+
+    // patch logic
+    if (req.body.name) {
+      petData[index].name = req.body.name;
+    }
+    if (req.body.age && Number.isInteger(req.body.age)) {
+      petData[index].age = req.body.age;
+    }
+    if (req.body.kind) {
+      petData[index].kind = req.body.kind;
+    }
+
+    fs.writeFile("pets.json", JSON.stringify(petData), "utf8", (err) => {
+      if (err) {
+        res.status(500).send("Problem writing to pets.json");
+        return;
+      }
+      res.send(JSON.stringify(petData[index]));
+    });
+  });
+});
+
+app.delete("/pets/:index", (req, res) => {
+  let index = req.params?.index;
+  let removed;
+  readFile((err, petData) => {
+    if (err) {
+      res.status(500).send("Problem reading pets.json");
+      return;
+    }
+    if (!index || !petData[index]) {
+      res.status(404).send("Not found, pet does not exist at that index.");
+      return;
+    }
+    removed = petData[index];
+    petData = petData.slice(0, index).concat(petData.slice(index + 1));
+
+    fs.writeFile("pets.json", JSON.stringify(petData), "utf8", (err) => {
+      if (err) {
+        res.status(500).send("Problem writing to pets.json");
+        return;
+      }
+      res.setHeader("Content-type", "application/json");
+      res.json(removed);
+    });
   });
 });
 
